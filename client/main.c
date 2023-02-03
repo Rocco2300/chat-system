@@ -63,9 +63,9 @@ int main()
     {
         if (read_message)
         {
-            int len = strlen(input_buffer);
+            size_t len = strlen(input_buffer);
             input_buffer[len - 1] = '\0';
-            send(sock, input_buffer, 1024, 0);
+            send(sock, input_buffer, len, 0);
             read_message = 0;
         }
     }
