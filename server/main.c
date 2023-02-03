@@ -1,11 +1,11 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
 
-#include <unistd.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 const uint32_t PORT = 8083;
 
@@ -16,10 +16,10 @@ int main()
     int opt = 1;
 
     struct sockaddr_in address;
-    int addrlen = sizeof(address);
+    int                addrlen = sizeof(address);
 
-    char buffer[1024] = {0};
-    char* hello = "Hello from server!\n";
+    char  buffer[1024] = {0};
+    char* hello        = "Hello from server!";
 
     serverfd = socket(AF_INET, SOCK_STREAM, 0);
     if (serverfd < 0)
@@ -28,15 +28,17 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    if (setsockopt(serverfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)))
+    if (setsockopt(
+                serverfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
+                sizeof(opt)))
     {
         perror("Option failed!\n");
         exit(EXIT_FAILURE);
     }
 
-    address.sin_family = AF_INET;
+    address.sin_family      = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
+    address.sin_port        = htons(PORT);
 
     if (bind(serverfd, (struct sockaddr_in*) &address, sizeof(address)) < 0)
     {
@@ -50,7 +52,8 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    new_socket = accept(serverfd, (struct sockaddr_in*)&address, (socklen_t*)&addrlen);
+    new_socket = accept(
+            serverfd, (struct sockaddr_in*) &address, (socklen_t*) &addrlen);
     if (new_socket < 0)
     {
         perror("Accept error!\n");
@@ -66,7 +69,7 @@ int main()
     send(new_socket, hello, strlen(hello), 0);
     printf("Hello message sent\n");
 
-    //ceva
+    close(serverfd);
 
     return 0;
 }
