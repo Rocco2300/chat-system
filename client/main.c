@@ -2,12 +2,30 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <pthread.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 
 const uint32_t PORT = 8083;
+
+int read_message;
+char input_buffer[1024];
+
+void* get_input(void* arg)
+{
+    while (1)
+    {
+        if (!read_message)
+        {
+            printf("message:");
+            fgets(&input_buffer, 1024, stdin);
+            read_message = 1;
+        }
+    }
+    return NULL;
+}
 
 int main()
 {
@@ -39,11 +57,18 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    send(sock, hello, strlen(hello), 0);
-    printf("Hello message sent\n");
-    valread = read(sock, buffer, 1024);
-    if (valread)
-        printf("%s\n", buffer);
+    pthread_t thread;
+    pthread_create(&thread, NULL, get_input, NULL);
+    while (1)
+    {
+        if (read_message)
+        {
+            int len = strlen(input_buffer);
+            input_buffer[len - 1] = '\0';
+            send(sock, input_buffer, 1024, 0);
+            read_message = 0;
+        }
+    }
 
     close(clientfd);
     return 0;

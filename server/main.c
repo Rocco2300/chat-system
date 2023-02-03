@@ -28,6 +28,8 @@ int main()
         exit(EXIT_FAILURE);
     }
 
+    printf("Server socket: %d\n", serverfd);
+
     if (setsockopt(
                 serverfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
                 sizeof(opt)))
@@ -60,14 +62,16 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    valread = read(new_socket, buffer, 1024);
-    if (valread)
-    {
-        printf("%s\n", buffer);
-    }
+    printf("Client socket: %d\n", new_socket);
 
-    send(new_socket, hello, strlen(hello), 0);
-    printf("Hello message sent\n");
+    while (1)
+    {
+        valread = recv(new_socket, buffer, 1024, 0);
+        if (valread)
+        {
+            printf("%s\n", buffer);
+        }
+    }
 
     close(serverfd);
 
