@@ -1,4 +1,0 @@
-/mnt/c/Users/grigo/Repos/chat-system/build-debug/CMakeFiles/chat_client.dir
-/mnt/c/Users/grigo/Repos/chat-system/build-debug/CMakeFiles/chat_server.dir
-/mnt/c/Users/grigo/Repos/chat-system/build-debug/CMakeFiles/edit_cache.dir
-/mnt/c/Users/grigo/Repos/chat-system/build-debug/CMakeFiles/rebuild_cache.dir
