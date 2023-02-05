@@ -11,7 +11,7 @@
 const uint32_t PORT = 8083;
 
 int read_message;
-char input_buffer[1024];
+char buffer[1024];
 
 void* get_input(void* arg)
 {
@@ -20,7 +20,7 @@ void* get_input(void* arg)
         if (!read_message)
         {
             printf("message:");
-            fgets(&input_buffer, 1024, stdin);
+            fgets(buffer, 1024, stdin);
             read_message = 1;
         }
     }
@@ -31,8 +31,6 @@ int main()
 {
     int sock = 0, valread, clientfd;
     struct sockaddr_in serv_addr;
-    char* hello = "Hello from client!";
-    char buffer[1024] = {0};
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0)
@@ -63,9 +61,9 @@ int main()
     {
         if (read_message)
         {
-            size_t len = strlen(input_buffer);
-            input_buffer[len - 1] = '\0';
-            send(sock, input_buffer, len, 0);
+            size_t len = strlen(buffer);
+            buffer[len - 1] = '\0';
+            send(sock, buffer, len, 0);
             read_message = 0;
         }
     }

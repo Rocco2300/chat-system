@@ -11,27 +11,29 @@ const uint32_t PORT = 8083;
 
 int main()
 {
-    int valread;
-    int serverfd, new_socket;
+    fd_set master_fd_set;
+    int master_socket;
     int opt = 1;
 
     struct sockaddr_in address;
     int                addrlen = sizeof(address);
 
     char  buffer[1024] = {0};
-    char* hello        = "Hello from server!";
 
-    serverfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverfd < 0)
+    master_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (master_socket < 0)
     {
         perror("Socket failed!\n");
         exit(EXIT_FAILURE);
     }
 
-    printf("Server socket: %d\n", serverfd);
+    FD_ZERO(&master_fd_set);
+    FD_SET(master_socket, &master_fd_set);
+
+    printf("Server socket: %d\n", master_socket);
 
     if (setsockopt(
-                serverfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
+                master_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
                 sizeof(opt)))
     {
         perror("Option failed!\n");
@@ -42,38 +44,57 @@ int main()
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port        = htons(PORT);
 
-    if (bind(serverfd, (struct sockaddr*) &address, sizeof(address)) < 0)
+    if (bind(master_socket, (struct sockaddr*) &address, sizeof(address)) < 0)
     {
         perror("Bind error!\n");
         exit(EXIT_FAILURE);
     }
 
-    if (listen(serverfd, 3) < 0)
+    if (listen(master_socket, 3) < 0)
     {
         perror("Listen failure!\n");
         exit(EXIT_FAILURE);
     }
 
-    new_socket = accept(
-            serverfd, (struct sockaddr*) &address, (socklen_t*) &addrlen);
-    if (new_socket < 0)
-    {
-        perror("Accept error!\n");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("Client socket: %d\n", new_socket);
-
     while (1)
     {
-        valread = recv(new_socket, buffer, 1024, 0);
-        if (valread)
+        fd_set copy_fd_set = master_fd_set;
+
+        if (select(FD_SETSIZE, &copy_fd_set, NULL, NULL, NULL) < 0)
         {
-            printf("%s\n", buffer);
+            perror("Select error\n");
+            exit(EXIT_FAILURE);
         }
+
+        for (int i = 0; i < FD_SETSIZE; i++)
+        {
+            if (FD_ISSET(i, &copy_fd_set))
+            {
+                if (i == master_socket)
+                {
+                    // we have new connection
+                    int client_socket = accept(
+                            master_socket, (struct sockaddr*) &address, (socklen_t*) &addrlen);
+                    if (client_socket < 0)
+                    {
+                        perror("Accept error!\n");
+                        exit(EXIT_FAILURE);
+                    }
+
+                    printf("Client socket: %d\n", client_socket);
+                    FD_SET(client_socket, &master_fd_set);
+                }
+            }
+        }
+//
+//        int ret = recv(client_socket, buffer, 1024, 0);
+//        if (ret)
+//        {
+//            printf("%s\n", buffer);
+//        }
     }
 
-    close(serverfd);
+    close(master_socket);
 
     return 0;
 }
