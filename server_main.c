@@ -11,6 +11,8 @@ const uint32_t PORT = 8083;
 
 int main()
 {
+    char usernames[1024][36] = {0};
+
     fd_set master_fd_set;
     int master_socket;
     int opt = 1;
@@ -82,15 +84,41 @@ int main()
                     }
 
                     printf("Client socket: %d\n", client_socket);
+                    char* hello = "Hello new client!\0";
+                    send(client_socket, hello, strlen(hello), 0);
                     FD_SET(client_socket, &master_fd_set);
                 }
                 else
                 {
                     // we are receiving a message
+                    memset(buffer, 0, 1024);
                     int ret = recv(i, buffer, 1024, 0);
                     if (ret)
                     {
                         printf("%s\n", buffer);
+                    }
+
+                    if (strstr(buffer, "Username:") != NULL)
+                    {
+                        memcpy(usernames[i], buffer + 10, strlen(buffer) - 10);
+                        continue;
+                    }
+
+                    for (int j = 0; j < FD_SETSIZE; j++)
+                    {
+                        if (j == master_socket || j == i)
+                            continue;
+
+                        int username_len = strlen(usernames[i]);
+                        int final_message_len = 1024 + username_len + 2;
+                        char final_message[final_message_len];
+                        memset(final_message, 0, final_message_len);
+
+                        strcat(final_message, usernames[i]);
+                        strcat(final_message, ": ");
+                        strcat(final_message, buffer);
+
+                        send(j, final_message, strlen(final_message), 0);
                     }
                 }
             }
