@@ -42,7 +42,7 @@ int main()
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port        = htons(PORT);
 
-    if (bind(serverfd, (struct sockaddr_in*) &address, sizeof(address)) < 0)
+    if (bind(serverfd, (struct sockaddr*) &address, sizeof(address)) < 0)
     {
         perror("Bind error!\n");
         exit(EXIT_FAILURE);
@@ -55,7 +55,7 @@ int main()
     }
 
     new_socket = accept(
-            serverfd, (struct sockaddr_in*) &address, (socklen_t*) &addrlen);
+            serverfd, (struct sockaddr*) &address, (socklen_t*) &addrlen);
     if (new_socket < 0)
     {
         perror("Accept error!\n");
