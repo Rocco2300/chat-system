@@ -84,14 +84,19 @@ int main()
                     printf("Client socket: %d\n", client_socket);
                     FD_SET(client_socket, &master_fd_set);
                 }
+                else
+                {
+                    // we are receiving a message
+                    int ret = recv(i, buffer, 1024, 0);
+                    if (ret)
+                    {
+                        printf("%s\n", buffer);
+                    }
+                }
             }
         }
-//
-//        int ret = recv(client_socket, buffer, 1024, 0);
-//        if (ret)
-//        {
-//            printf("%s\n", buffer);
-//        }
+
+
     }
 
     close(master_socket);

@@ -29,7 +29,7 @@ void* get_input(void* arg)
 
 int main()
 {
-    int sock = 0, valread, clientfd;
+    int sock = 0, clientfd;
     struct sockaddr_in serv_addr;
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
