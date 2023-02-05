@@ -29,7 +29,7 @@ void* get_input(void* arg)
 
 int main()
 {
-    int sock = 0, clientfd;
+    int sock = 0;
     struct sockaddr_in serv_addr;
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -48,8 +48,7 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    clientfd = connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
-    if (clientfd < 0)
+    if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
     {
         perror("Connection failed!\n");
         exit(EXIT_FAILURE);
@@ -68,6 +67,6 @@ int main()
         }
     }
 
-    close(clientfd);
+    close(sock);
     return 0;
 }
