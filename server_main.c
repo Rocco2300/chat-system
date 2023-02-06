@@ -131,16 +131,16 @@ int main()
 
         for (int i = 0; i < FD_SETSIZE; i++)
         {
-            if (FD_ISSET(i, &copy_fd_set))
+            if (!FD_ISSET(i, &copy_fd_set))
+                continue;
+
+            if (i == server.socket)
             {
-                if (i == server.socket)
-                {
-                    handle_connection(&server);
-                }
-                else
-                {
-                    handle_message(server, i);
-                }
+                handle_connection(&server);
+            }
+            else
+            {
+                handle_message(server, i);
             }
         }
     }
