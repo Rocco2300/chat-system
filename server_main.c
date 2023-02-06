@@ -38,8 +38,6 @@ server_t init_server()
     FD_ZERO(&server.clients);
     FD_SET(server.socket, &server.clients);
 
-    printf("Server socket: %d\n", server.socket);
-
     return server;
 }
 
@@ -55,7 +53,6 @@ void handle_connection(server_t* server)
         exit(EXIT_FAILURE);
     }
 
-    printf("Client socket: %d\n", client_socket);
     char* hello = "Hello new client!\0";
     send(client_socket, hello, strlen(hello), 0);
     FD_SET(client_socket, &server->clients);
@@ -85,11 +82,7 @@ void handle_message(server_t server, int socket)
 {
     char buffer[1024] = {0};
     memset(buffer, 0, 1024);
-    int ret = recv(socket, buffer, 1024, 0);
-    if (ret)
-    {
-        printf("%s\n", buffer);
-    }
+    recv(socket, buffer, 1024, 0);
 
     if (strstr(buffer, "Username:") != NULL)
     {
