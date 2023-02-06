@@ -9,58 +9,73 @@
 
 const uint32_t PORT = 8083;
 
+typedef struct
+{
+    int socket;
+    struct sockaddr_in address;
+    socklen_t addrlen;
+
+    fd_set clients;
+} server_t;
+
+void handle_connection(server_t* server)
+{
+    // we have new connection
+    int client_socket = accept(
+            server->socket, (struct sockaddr*)&server->address, &server->addrlen);
+    if (client_socket < 0)
+    {
+        perror("Accept error!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Client socket: %d\n", client_socket);
+    char* hello = "Hello new client!\0";
+    send(client_socket, hello, strlen(hello), 0);
+    FD_SET(client_socket, &server->clients);
+}
+
 int main()
 {
     char usernames[1024][36] = {0};
 
-    fd_set master_fd_set;
-    int master_socket;
+    server_t server;
     int opt = 1;
 
-    struct sockaddr_in address;
-    int                addrlen = sizeof(address);
-
-    char  buffer[1024] = {0};
-
-    master_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (master_socket < 0)
+    server.socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (server.socket < 0)
     {
         perror("Socket failed!\n");
         exit(EXIT_FAILURE);
     }
 
-    FD_ZERO(&master_fd_set);
-    FD_SET(master_socket, &master_fd_set);
+    server.address.sin_family      = AF_INET;
+    server.address.sin_addr.s_addr = INADDR_ANY;
+    server.address.sin_port        = htons(PORT);
+    server.addrlen = sizeof(server.address);
 
-    printf("Server socket: %d\n", master_socket);
+    FD_ZERO(&server.clients);
+    FD_SET(server.socket, &server.clients);
 
-    if (setsockopt(
-                master_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
-                sizeof(opt)))
-    {
-        perror("Option failed!\n");
-        exit(EXIT_FAILURE);
-    }
+    printf("Server socket: %d\n", server.socket);
 
-    address.sin_family      = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port        = htons(PORT);
-
-    if (bind(master_socket, (struct sockaddr*) &address, sizeof(address)) < 0)
+    if (bind(server.socket, (struct sockaddr*) &server.address, server.addrlen) < 0)
     {
         perror("Bind error!\n");
         exit(EXIT_FAILURE);
     }
 
-    if (listen(master_socket, 3) < 0)
+    if (listen(server.socket, 3) < 0)
     {
         perror("Listen failure!\n");
         exit(EXIT_FAILURE);
     }
 
+    printf("Server started!\n");
+
     while (1)
     {
-        fd_set copy_fd_set = master_fd_set;
+        fd_set copy_fd_set = server.clients;
 
         if (select(FD_SETSIZE, &copy_fd_set, NULL, NULL, NULL) < 0)
         {
@@ -72,25 +87,14 @@ int main()
         {
             if (FD_ISSET(i, &copy_fd_set))
             {
-                if (i == master_socket)
+                if (i == server.socket)
                 {
-                    // we have new connection
-                    int client_socket = accept(
-                            master_socket, (struct sockaddr*) &address, (socklen_t*) &addrlen);
-                    if (client_socket < 0)
-                    {
-                        perror("Accept error!\n");
-                        exit(EXIT_FAILURE);
-                    }
-
-                    printf("Client socket: %d\n", client_socket);
-                    char* hello = "Hello new client!\0";
-                    send(client_socket, hello, strlen(hello), 0);
-                    FD_SET(client_socket, &master_fd_set);
+                    handle_connection(&server);
                 }
                 else
                 {
                     // we are receiving a message
+                    char buffer[1024] = {0};
                     memset(buffer, 0, 1024);
                     int ret = recv(i, buffer, 1024, 0);
                     if (ret)
@@ -106,7 +110,7 @@ int main()
 
                     for (int j = 0; j < FD_SETSIZE; j++)
                     {
-                        if (j == master_socket || j == i)
+                        if (j == server.socket || j == i)
                             continue;
 
                         int username_len = strlen(usernames[i]);
@@ -127,7 +131,7 @@ int main()
 
     }
 
-    close(master_socket);
+    close(server.socket);
 
     return 0;
 }
