@@ -7,22 +7,48 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+char usernames[1024][36];
 const uint32_t PORT = 8083;
 
 typedef struct
 {
-    int socket;
+    int                socket;
     struct sockaddr_in address;
-    socklen_t addrlen;
+    socklen_t          addrlen;
 
     fd_set clients;
 } server_t;
 
+server_t init_server()
+{
+    server_t server;
+
+    server.socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (server.socket < 0)
+    {
+        perror("Socket failed!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    server.address.sin_family      = AF_INET;
+    server.address.sin_addr.s_addr = INADDR_ANY;
+    server.address.sin_port        = htons(PORT);
+    server.addrlen                 = sizeof(server.address);
+
+    FD_ZERO(&server.clients);
+    FD_SET(server.socket, &server.clients);
+
+    printf("Server socket: %d\n", server.socket);
+
+    return server;
+}
+
 void handle_connection(server_t* server)
 {
     // we have new connection
-    int client_socket = accept(
-            server->socket, (struct sockaddr*)&server->address, &server->addrlen);
+    int client_socket =
+            accept(server->socket, (struct sockaddr*) &server->address,
+                   &server->addrlen);
     if (client_socket < 0)
     {
         perror("Accept error!\n");
@@ -35,31 +61,51 @@ void handle_connection(server_t* server)
     FD_SET(client_socket, &server->clients);
 }
 
-int main()
+void broadcast_message(server_t server, int socket, char* buffer)
 {
-    char usernames[1024][36] = {0};
-
-    server_t server;
-    int opt = 1;
-
-    server.socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (server.socket < 0)
+    for (int j = 0; j < FD_SETSIZE; j++)
     {
-        perror("Socket failed!\n");
-        exit(EXIT_FAILURE);
+        if (j == server.socket || j == socket)
+            continue;
+
+        int  username_len      = strlen(usernames[socket]);
+        int  final_message_len = 1024 + username_len + 2;
+        char final_message[final_message_len];
+        memset(final_message, 0, final_message_len);
+
+        strcat(final_message, usernames[socket]);
+        strcat(final_message, ": ");
+        strcat(final_message, buffer);
+
+        send(j, final_message, strlen(final_message), 0);
+    }
+}
+
+void handle_message(server_t server, int socket)
+{
+    char buffer[1024] = {0};
+    memset(buffer, 0, 1024);
+    int ret = recv(socket, buffer, 1024, 0);
+    if (ret)
+    {
+        printf("%s\n", buffer);
     }
 
-    server.address.sin_family      = AF_INET;
-    server.address.sin_addr.s_addr = INADDR_ANY;
-    server.address.sin_port        = htons(PORT);
-    server.addrlen = sizeof(server.address);
+    if (strstr(buffer, "Username:") != NULL)
+    {
+        memcpy(usernames[socket], buffer + 10, strlen(buffer) - 10);
+        return;
+    }
 
-    FD_ZERO(&server.clients);
-    FD_SET(server.socket, &server.clients);
+    broadcast_message(server, socket, buffer);
+}
 
-    printf("Server socket: %d\n", server.socket);
 
-    if (bind(server.socket, (struct sockaddr*) &server.address, server.addrlen) < 0)
+int main()
+{
+    server_t server = init_server();
+    if (bind(server.socket, (struct sockaddr*) &server.address,
+             server.addrlen) < 0)
     {
         perror("Bind error!\n");
         exit(EXIT_FAILURE);
@@ -93,42 +139,10 @@ int main()
                 }
                 else
                 {
-                    // we are receiving a message
-                    char buffer[1024] = {0};
-                    memset(buffer, 0, 1024);
-                    int ret = recv(i, buffer, 1024, 0);
-                    if (ret)
-                    {
-                        printf("%s\n", buffer);
-                    }
-
-                    if (strstr(buffer, "Username:") != NULL)
-                    {
-                        memcpy(usernames[i], buffer + 10, strlen(buffer) - 10);
-                        continue;
-                    }
-
-                    for (int j = 0; j < FD_SETSIZE; j++)
-                    {
-                        if (j == server.socket || j == i)
-                            continue;
-
-                        int username_len = strlen(usernames[i]);
-                        int final_message_len = 1024 + username_len + 2;
-                        char final_message[final_message_len];
-                        memset(final_message, 0, final_message_len);
-
-                        strcat(final_message, usernames[i]);
-                        strcat(final_message, ": ");
-                        strcat(final_message, buffer);
-
-                        send(j, final_message, strlen(final_message), 0);
-                    }
+                    handle_message(server, i);
                 }
             }
         }
-
-
     }
 
     close(server.socket);
