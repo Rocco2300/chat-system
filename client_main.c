@@ -117,8 +117,7 @@ int main(int argc, char** argv)
     {
         fd_set read_fd_set  = client.server_status;
         fd_set write_fd_set = client.server_status;
-        if (select(client.nfds + 1, &read_fd_set, &write_fd_set, NULL, NULL) <
-            0)
+        if (select(client.nfds + 1, &read_fd_set, &write_fd_set, NULL, NULL) < 0)
         {
             perror("Select error\n");
             exit(EXIT_FAILURE);

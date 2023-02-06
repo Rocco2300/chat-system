@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-char usernames[1024][36];
+char           usernames[1024][36];
 const uint32_t PORT = 8083;
 
 typedef struct
@@ -45,8 +45,7 @@ void handle_connection(server_t* server)
 {
     // we have new connection
     int client_socket =
-            accept(server->socket, (struct sockaddr*) &server->address,
-                   &server->addrlen);
+            accept(server->socket, (struct sockaddr*) &server->address, &server->addrlen);
     if (client_socket < 0)
     {
         perror("Accept error!\n");
@@ -96,8 +95,7 @@ void handle_message(server_t server, int socket)
 int main()
 {
     server_t server = init_server();
-    if (bind(server.socket, (struct sockaddr*) &server.address,
-             server.addrlen) < 0)
+    if (bind(server.socket, (struct sockaddr*) &server.address, server.addrlen) < 0)
     {
         perror("Bind error!\n");
         exit(EXIT_FAILURE);
