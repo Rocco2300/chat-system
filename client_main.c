@@ -1,17 +1,17 @@
+#include <pthread.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <pthread.h>
 
-#include <sys/socket.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 const uint32_t PORT = 8083;
 
-int running;
-int read_message;
+int  running;
+int  read_message;
 char input_buffer[1024];
 
 void* get_input(void* arg)
@@ -29,6 +29,47 @@ void* get_input(void* arg)
     return NULL;
 }
 
+typedef struct
+{
+    int                socket;
+    struct sockaddr_in server_address;
+
+    fd_set server_status;
+    int    nfds;
+} client_t;
+
+void handle_message(client_t client, pthread_t* thread)
+{
+    char buffer[1024] = {0};
+
+    int ret = recv(client.socket, buffer, 1024, 0);
+    if (ret)
+    {
+        if (!running)
+        {
+            printf("%s\n", buffer);
+            fflush(stdout);
+            pthread_create(thread, NULL, get_input, NULL);
+            return;
+        }
+
+        printf("\r%s\n> ", buffer);
+        fflush(stdout);
+    }
+}
+
+void send_message(client_t client)
+{
+    if (read_message)
+    {
+        read_message = 0;
+        size_t len   = strlen(input_buffer);
+
+        input_buffer[len - 1] = '\0';
+        send(client.socket, input_buffer, len, 0);
+    }
+}
+
 int main(int argc, char** argv)
 {
     if (argc != 2)
@@ -37,31 +78,31 @@ int main(int argc, char** argv)
         exit(EXIT_FAILURE);
     }
 
-    int sock = 0, nfds;
-    struct sockaddr_in serv_addr;
-    fd_set master_fd_set;
+    client_t  client;
+    pthread_t thread;
 
-    sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0)
+    client.socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (client.socket < 0)
     {
         perror("Socket error!\n");
         exit(EXIT_FAILURE);
     }
 
-    FD_ZERO(&master_fd_set);
-    FD_SET(sock, &master_fd_set);
-    nfds = sock;
+    FD_ZERO(&client.server_status);
+    FD_SET(client.socket, &client.server_status);
+    client.nfds = client.socket;
 
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
+    client.server_address.sin_family = AF_INET;
+    client.server_address.sin_port   = htons(PORT);
 
-    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0)
+    if (inet_pton(AF_INET, "127.0.0.1", &client.server_address.sin_addr) <= 0)
     {
         perror("Invalid address!\n");
         exit(EXIT_FAILURE);
     }
 
-    if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
+    if (connect(client.socket, (struct sockaddr*) &client.server_address,
+                sizeof(client.server_address)) < 0)
     {
         perror("Connection failed!\n");
         exit(EXIT_FAILURE);
@@ -70,52 +111,32 @@ int main(int argc, char** argv)
     char message[1024] = {0};
     strcat(message, "Username: ");
     strcat(message, argv[1]);
-    send(sock, message, strlen(message), 0);
+    send(client.socket, message, strlen(message), 0);
 
-    pthread_t thread;
     while (1)
     {
-        fd_set read_fd_set = master_fd_set;
-        fd_set write_fd_set = master_fd_set;
-        if (select(nfds + 1, &read_fd_set, &write_fd_set, NULL, NULL) < 0)
+        fd_set read_fd_set  = client.server_status;
+        fd_set write_fd_set = client.server_status;
+        if (select(client.nfds + 1, &read_fd_set, &write_fd_set, NULL, NULL) <
+            0)
         {
             perror("Select error\n");
             exit(EXIT_FAILURE);
         }
 
-        for (int i = 0; i <= nfds; i++)
+        for (int i = 0; i <= client.nfds; i++)
         {
-            if (FD_ISSET(i, &read_fd_set) && i == sock)
+            if (FD_ISSET(i, &read_fd_set) && i == client.socket)
             {
-                char buffer[1024] = {0};
-                int ret = recv(sock, buffer, 1024, 0);
-                if (ret)
-                {
-                    if (!running)
-                    {
-                        printf("%s\n", buffer);
-                        fflush(stdout);
-                        pthread_create(&thread, NULL, get_input, NULL);
-                        continue;
-                    }
-
-                    printf("\r%s\n> ", buffer);
-                    fflush(stdout);
-                }
+                handle_message(client, &thread);
             }
-            else if (FD_ISSET(i, &write_fd_set) && i == sock)
+            else if (FD_ISSET(i, &write_fd_set) && i == client.socket)
             {
-                if (read_message)
-                {
-                    size_t len = strlen(input_buffer);
-                    input_buffer[len - 1] = '\0';
-                    send(sock, input_buffer, len, 0);
-                    read_message = 0;
-                }
+                send_message(client);
             }
         }
     }
 
-    close(sock);
+    close(client.socket);
     return 0;
 }

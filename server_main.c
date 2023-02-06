@@ -100,7 +100,6 @@ void handle_message(server_t server, int socket)
     broadcast_message(server, socket, buffer);
 }
 
-
 int main()
 {
     server_t server = init_server();
